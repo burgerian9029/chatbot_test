@@ -69,14 +69,14 @@
 	<title>나의 대화 기록 | Realtime English</title>
 </svelte:head>
 
-<main class="min-h-screen bg-gray-50 px-4 py-10 sm:px-8 sm:py-16">
+<main class="min-h-screen bg-gray-50 px-4 pt-20 pb-10 sm:px-8 sm:pt-24 sm:pb-16">
 	<div class="mx-auto max-w-2xl">
-		<div class="mb-8 flex items-center justify-between">
+		<div class="mb-8 flex items-start justify-between gap-4">
 			<div>
-				<h1 class="text-3xl font-bold text-gray-800">나의 대화 기록 📚</h1>
-				<p class="mt-2 text-gray-500">AI 선생님과 연습했던 내용을 복습해보세요.</p>
+				<h1 class="text-2xl sm:text-3xl font-bold text-gray-800">나의 대화 기록 📚</h1>
+				<p class="mt-2 text-sm sm:text-base text-gray-500">AI 선생님과 연습했던 내용을 복습해보세요.</p>
 			</div>
-			<a href="/" class="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-blue-500 shadow-sm transition hover:bg-gray-50">
+			<a href="/" class="shrink-0 whitespace-nowrap rounded-full bg-white px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-blue-500 shadow-sm transition hover:bg-gray-50 border border-gray-100">
 				돌아가기
 			</a>
 		</div>
