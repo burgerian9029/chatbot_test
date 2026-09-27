@@ -1,6 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	import { connectRealtime } from '$lib/realtimeClient.js';
+	import { db, auth } from '$lib/firebase';
+	import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 	/** @type {HTMLCanvasElement | undefined} */
 	let canvasEl;
@@ -23,6 +25,10 @@
 	let analyser = null;
 	/** @type {null | { disconnect: () => void; localStream: MediaStream }} */
 	let session = null;
+
+	let currentUser = $state(null);
+	let authLoaded = $state(false);
+	let showLoginTooltip = $state(false);
 
 	const isLive = $derived(status === 'live');
 	const isBusy = $derived(status === 'connecting');
@@ -164,23 +170,52 @@
 		}
 	}
 
-	function stopConversation() {
+	async function stopConversation() {
 		session?.disconnect();
 		session = null;
 		userSpeaking = false;
 		clearTimer();
 		stopVisualizers();
 		status = 'idle';
+
+		// 대화 내용이 있고 로그인이 되어 있다면 Firestore에 저장
+		if (messages.length > 0 && auth.currentUser) {
+			try {
+				await addDoc(collection(db, 'conversations'), {
+					userId: auth.currentUser.uid,
+					timestamp: serverTimestamp(),
+					durationMs: elapsedMs,
+					messages: messages.map(m => ({ role: m.role, text: m.text }))
+				});
+				console.log("대화 기록이 성공적으로 저장되었습니다.");
+			} catch (err) {
+				console.error("대화 기록 저장 실패:", err);
+			}
+		}
 	}
 
 	function toggleConversation() {
 		if (status === 'connecting') return;
+		
+		if (!currentUser) {
+			showLoginTooltip = true;
+			setTimeout(() => showLoginTooltip = false, 3000);
+			return;
+		}
+
 		if (isLive) stopConversation();
 		else startConversation();
 	}
 
 	onMount(() => {
-		return () => stopConversation();
+		const unsubscribe = auth.onAuthStateChanged(u => {
+			currentUser = u;
+			authLoaded = true;
+		});
+		return () => {
+			stopConversation();
+			unsubscribe();
+		};
 	});
 </script>
 
@@ -215,27 +250,40 @@
 	</div>
 
 	<!-- Main Action Button -->
-	<button
-		type="button"
-		class="mb-10 w-full rounded-full bg-gradient-to-r from-[#20b8ff] to-[#00dbff] py-4 text-[15px] font-bold text-white shadow-xl shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 flex items-center justify-center gap-2"
-		onclick={toggleConversation}
-		disabled={isBusy}
-	>
-		{#if isLive}
-			<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-				<path d="M6 6h12v12H6z" />
-			</svg>
-		{:else if isBusy}
-			<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-			</svg>
-		{:else}
-			<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-				<path d="M8 5v14l11-7z" />
-			</svg>
+	<div class="relative w-full mb-10">
+		{#if showLoginTooltip}
+			<div class="absolute -top-14 left-1/2 -translate-x-1/2 rounded-xl bg-gray-800 px-4 py-2.5 text-[13px] font-medium text-white shadow-lg animate-fade-in z-10 whitespace-nowrap">
+				대화를 시작하려면 우측 상단에서 로그인해 주세요!
+				<!-- 툴팁 꼬리 -->
+				<div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+			</div>
 		{/if}
-		{isLive ? '연결 종료하기' : isBusy ? '연결 중...' : 'AI 선생님과 연결하기'}
-	</button>
+		<button
+			type="button"
+			class="w-full rounded-full bg-gradient-to-r from-[#20b8ff] to-[#00dbff] py-4 text-[15px] font-bold text-white shadow-xl shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 flex items-center justify-center gap-2"
+			onclick={toggleConversation}
+			disabled={isBusy}
+		>
+			{#if authLoaded && !currentUser}
+				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+				</svg>
+			{:else if isLive}
+				<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+					<path d="M6 6h12v12H6z" />
+				</svg>
+			{:else if isBusy}
+				<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+				</svg>
+			{:else}
+				<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+					<path d="M8 5v14l11-7z" />
+				</svg>
+			{/if}
+			{isLive ? '연결 종료하기' : isBusy ? '연결 중...' : 'AI 선생님과 연결하기'}
+		</button>
+	</div>
 
 	<!-- Content Area: Guide vs Transcript -->
 	{#if isLive || messages.length > 0}
