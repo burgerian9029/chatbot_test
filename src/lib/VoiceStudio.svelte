@@ -140,7 +140,7 @@
 				},
 				onAssistantStart() {
 					const last = messages.at(-1);
-					if (last?.role !== 'assistant' || last.text) {
+					if (last?.role !== 'assistant') {
 						messages = [...messages, { id: `a-${nextId++}`, role: 'assistant', text: '' }];
 						scrollTranscript();
 					}
