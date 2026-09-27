@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
+import { GoogleGenAI } from '@google/genai';
 
 export async function POST() {
 	// 기존 OPENAI_API_KEY를 재사용하거나 새로 추가한 GEMINI_API_KEY를 사용합니다.
@@ -15,10 +16,23 @@ export async function POST() {
 		);
 	}
 
-	// 로컬 테스트용이므로, API 키를 직접 브라우저로 내려주어 Gemini SDK가 쓰도록 합니다.
-	// 실제 운영 환경에서는 Ephemeral Token을 발급받아 사용하는 것이 안전합니다.
-	return json({
-		value: apiKey,
-		expires_at: Date.now() + 3600000
-	});
+	try {
+		const client = new GoogleGenAI({ apiKey });
+		
+		const token = await client.authTokens.create({
+			config: {
+				uses: 1,
+				expireTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+				newSessionExpireTime: new Date(Date.now() + 1 * 60 * 1000).toISOString(),
+			},
+		});
+
+		return json({
+			value: token.name,
+			expires_at: Date.now() + 30 * 60 * 1000
+		});
+	} catch (err) {
+		console.error("Token creation failed:", err);
+		return json({ error: '임시 토큰 생성에 실패했습니다.' }, { status: 500 });
+	}
 }
