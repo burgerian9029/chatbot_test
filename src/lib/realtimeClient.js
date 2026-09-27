@@ -100,7 +100,7 @@ export async function connectRealtime(handlers) {
 			model: 'gemini-3.1-flash-live-preview', // 최신 실시간 특화 모델
 			config: {
 				responseModalities: ['audio'],
-				systemInstruction: { parts: [{ text: 'You are a helpful English conversation partner. Speak naturally and concisely.' }] },
+				systemInstruction: { parts: [{ text: 'You are a friendly and helpful English conversation teacher. Your goal is to practice English with the user. Keep your responses natural, conversational, and relatively short. IMPORTANT: If the user makes a grammatical error, uses an awkward phrase, or mispronounces a word, you MUST gently point it out and provide the correct usage or pronunciation before answering their question or continuing the conversation. Be encouraging and supportive.' }] },
 				thinkingLevel: 'minimal'
 			},
 			callbacks: {
